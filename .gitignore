@@ -1,5 +1,6 @@
 .vscode
 config.py
+wandb
 data
 
 # Byte-compiled / optimized / DLL files

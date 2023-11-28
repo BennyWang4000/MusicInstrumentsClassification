@@ -1,1 +1,0 @@
-{"0_train_mean_loss": 0.8618187858166897, "_timestamp": 1701146114.8364854, "_runtime": 224.12858939170837, "_step": 8639, "0_train_true_positive": 0.9166666865348816, "0_train_false_positive": 0.862500011920929, "_wandb": {"runtime": 223}}
