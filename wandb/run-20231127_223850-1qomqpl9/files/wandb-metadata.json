@@ -1,0 +1,88 @@
+{
+    "os": "Linux-4.15.0-197-generic-x86_64-with-glibc2.27",
+    "python": "3.10.13",
+    "heartbeatAt": "2023-11-27T13:38:51.513372",
+    "startedAt": "2023-11-27T13:38:50.630857",
+    "docker": null,
+    "cuda": "10.2.89",
+    "args": [],
+    "state": "running",
+    "program": "/home/wirl/wang/MusicInstrumentsClassification/train.py",
+    "codePathLocal": "train.py",
+    "codePath": "train.py",
+    "git": {
+        "remote": "https://github.com/BennyWang4000/MusicInstrumentsClassification.git",
+        "commit": "06c2f6332d78c5f6e0727d8cd5390db829db56da"
+    },
+    "email": "109598047@ntut.org.tw",
+    "root": "/home/wirl/wang/MusicInstrumentsClassification",
+    "host": "wirl-MS-7B22",
+    "username": "wirl",
+    "executable": "/home/wirl/conda/envs/wang-env/bin/python",
+    "cpu_count": 8,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 3.8227499999999996,
+        "min": 800.0,
+        "max": 4700.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3.736,
+            "min": 800.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3.716,
+            "min": 800.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3.728,
+            "min": 800.0,
+            "max": 4700.0
+        },
+        {
+            "current": 4.055,
+            "min": 800.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3.497,
+            "min": 800.0,
+            "max": 4700.0
+        },
+        {
+            "current": 4.367,
+            "min": 800.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3.862,
+            "min": 800.0,
+            "max": 4700.0
+        },
+        {
+            "current": 3.621,
+            "min": 800.0,
+            "max": 4700.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 467.8895797729492,
+            "used": 388.5071220397949
+        }
+    },
+    "gpu": "GeForce RTX 2080 Ti",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "GeForce RTX 2080 Ti",
+            "memory_total": 11552096256
+        }
+    ],
+    "memory": {
+        "total": 31.349746704101562
+    }
+}
