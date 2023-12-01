@@ -1,5 +1,5 @@
 # %%
-from config import *
+from utils import *
 import wandb
 from torch.utils.data import DataLoader, random_split
 from math import floor
@@ -10,42 +10,9 @@ import os
 # %%
 
 
-def perf_measure(y_actual, y_hat):
-    TP = 0
-    FP = 0
-    TN = 0
-    FN = 0
-
-    for i in range(len(y_hat)):
-        if y_actual[i] == y_hat[i] == 1:
-            TP += 1
-        if y_hat[i] == 1 and y_actual[i] != y_hat[i]:
-            FP += 1
-        if y_actual[i] == y_hat[i] == 0:
-            TN += 1
-        if y_hat[i] == 0 and y_actual[i] != y_hat[i]:
-            FN += 1
-
-    return (TP, FP, TN, FN)
-
-
-def get_true_positive(y, y_hat):
-    y_hat_true = torch.where(y_hat > 0.5, 1.0, -1.0)
-    true_positive = (y == y_hat_true).sum().float()
-    return true_positive / torch.count_nonzero(y)
-
-
-def get_false_positive(y, y_hat):
-    y_hat_true = torch.where(
-        y_hat > 0.5, 1.0, -1.0)
-    false_positive = torch.where(
-        y != y_hat_true, 1.0, 0).sum().float()
-    return false_positive / torch.count_nonzero(y_hat_true)
-
-
 if __name__ == '__main__':
     dataset = InstrumentsDataset(
-        openmic_dir=OPENMIC_DIR, class2idx_dict=CLASS2IDX_DICT, device=DEVICE, audio_length=AUDIO_LENGTH,
+        openmic_dir=OPENMIC_DIR, inst2idx_dict=INST2CLASSIDX_DICT, classes=len(INSTIDX2CLASSIDX_DICT), device=DEVICE, audio_length=AUDIO_LENGTH,
         sample_rate=SAMPLE_RATE, n_mels=N_MELS, n_fft=N_FFT, n_freqs=N_FREQS,
         hop_length=HOP_LENGTH, f_max=F_MAX, f_min=F_MIN)
     val_num = floor(dataset.__len__() * VALID_PER)
@@ -68,27 +35,18 @@ if __name__ == '__main__':
     valid_loader = DataLoader(
         dataset=val_set, batch_size=BATCH_SIZE, shuffle=True)
 
-    if IS_WANDB:
-        wandb.init(
-            project="MusicInstrumentsClassification",
-            config={
-                'epochs': EPOCHS,
-                'batch_size': BATCH_SIZE,
-                'lr': LR,
-                'optimizer': OPTIMIZER,
-                'criterion': CRITERION,
-            }
-        )
-
-    model = CNN2D(len(CLASS2IDX_DICT)).to(DEVICE)
+    model = CNN2D(len(INST2CLASSIDX_DICT)).to(DEVICE)
     optimizer = OPTIMIZER(model.parameters(), lr=LR)
     sigmoid = torch.nn.Sigmoid()
 
+    wandb_init()
+
+    # * ============================ train ============================
     for epoch in range(EPOCHS):
         print('epoch:\t', epoch)
         running_loss = 0.0
-        running_tp = 0.0
-        running_fp = 0.0
+        running_acc = 0.0
+        running_ppv = 0.0
         model.train()
         progress = tqdm(train_loader)
         iterator = enumerate(progress)
@@ -100,21 +58,14 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-            y_hat_label = sigmoid(y_hat_label)
-            y_hat_label = torch.where(
-                y_hat_label > 0.5, 1.0, 0.0)
-            for y, y_hat in zip(y_label, y_hat_label):
-                tp, fp, _, _ = perf_measure(
-                    y.tolist(), y_hat.tolist())
-                running_tp += tp/(tp+fp + 1)
-                running_fp += fp/(tp+fp + 1)
-            wandb.log(
-                {str(epoch) + '_train_mean_loss': running_loss / (i + 1)})
-            wandb.log(
-                {str(epoch) + '_train_mean_tp': running_tp / ((i + 1) * BATCH_SIZE)})
-            wandb.log(
-                {str(epoch) + '_train_mean_fp': running_fp / ((i + 1) * BATCH_SIZE)})
+            # y_hat_label = sigmoid(y_hat_label)
+            if i % 500 == 0:
+                print(y_hat_label)
 
+            running_acc, running_ppv = wandb_log(epoch, i, 'train', y_label, y_hat_label,
+                                                 running_loss, running_acc, running_ppv)
+
+        # * ============================ test ============================
         running_loss = 0.0
         running_tp = 0.0
         running_fp = 0.0
@@ -125,20 +76,13 @@ if __name__ == '__main__':
             log_mel, y_label, sample_rate = batch
             y_hat_label = model(log_mel)
             loss = CRITERION(y_hat_label, y_label)
-            y_hat_label = sigmoid(y_hat_label)
+            # y_hat_label = sigmoid(y_hat_label)
             running_loss += loss.item()
-            for y, y_hat in zip(y_label, y_hat_label):
-                tp, fp, _, _ = perf_measure(
-                    y.tolist(), y_hat.tolist())
-                running_tp += tp/(tp+fp + 1)
-                running_fp += fp/(tp+fp + 1)
-            wandb.log(
-                {str(epoch) + '_test_mean_loss': running_loss / (i + 1)})
-            wandb.log(
-                {str(epoch) + '_test_mean_tp': running_tp / ((i + 1) * BATCH_SIZE)})
-            wandb.log(
-                {str(epoch) + '_test_mean_fp': running_fp / ((i + 1) * BATCH_SIZE)})
 
+            running_acc, running_ppv = wandb_log(epoch, i, 'test', y_label, y_hat_label,
+                                                 running_loss, running_acc, running_ppv)
+
+    # * ============================ val ============================
     running_loss = 0.0
     running_tp = 0.0
     running_fp = 0.0
@@ -149,19 +93,10 @@ if __name__ == '__main__':
         log_mel, y_label = batch
         y_hat_label = model(log_mel)
         loss = CRITERION(y_hat_label, y_label)
-        y_hat_label = sigmoid(y_hat_label)
         running_loss += loss.item()
-        for y, y_hat in zip(y_label, y_hat_label):
-            tp, fp, _, _ = perf_measure(
-                y.tolist(), y_hat.tolist())
-            running_tp += tp/(tp+fp + 1)
-            running_fp += fp/(tp+fp + 1)
-        wandb.log(
-            {'val_mean_loss': running_loss / (i + 1)})
-        wandb.log(
-            {str(epoch) + '_val_mean_tp': running_tp / ((i + 1) * BATCH_SIZE)})
-        wandb.log(
-            {str(epoch) + '_val_mean_fp': running_fp / ((i + 1) * BATCH_SIZE)})
+        # y_hat_label = sigmoid(y_hat_label)
+        running_acc, running_ppv = wandb_log(epoch, i, 'val', y_label, y_hat_label,
+                                             running_loss, running_acc, running_ppv)
 
     model.normalize_parameters()
     torch.save(model.state_dict(), os.path.join(

@@ -17,8 +17,8 @@ class CNN2D(nn.Module):
         self.conv4 = Block2D(64, 128)
         self.conv5 = Block2D(128, 256)
         self.flatten = nn.Flatten()
-        self.linear1 = nn.Linear(64000, 128)
-        self.linear2 = nn.Linear(128, classes)
+        self.linear1 = nn.Linear(2176, 64)
+        self.linear2 = nn.Linear(64, classes)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -45,7 +45,7 @@ class CNN2D(nn.Module):
         x = self.flatten(x)
         x = self.linear1(x)
         x = self.linear2(x)
-        # x = self.sigmoid(x)
+        x = self.sigmoid(x)
         return x
 
 
@@ -53,14 +53,15 @@ class Block2D(nn.Module):
     def __init__(self, in_ch, out_ch):
         super(Block2D, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_ch, in_ch, kernel_size=3, padding=1),
+            nn.Conv2d(in_ch, in_ch, kernel_size=2, padding=1),
             # nn.BatchNorm2d(in_ch),
             # nn.LeakyReLU(0.25),
-            nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(in_ch, out_ch, kernel_size=2, padding=1),
             nn.BatchNorm2d(out_ch),
             nn.LeakyReLU(0.25),
-            nn.MaxPool2d(kernel_size=2),
-            # nn.Dropout(0.2),
+            nn.MaxPool2d(kernel_size=1, stride=2),
+            nn.Dropout(0.2),
         )
 
     def forward(self, x):

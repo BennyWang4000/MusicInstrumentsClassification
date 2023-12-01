@@ -6,9 +6,8 @@ import torchaudio
 
 
 class InstrumentsDataset(torch.utils.data.Dataset):
-    """Some Information about InstrumentsDataset"""
 
-    def __init__(self, openmic_dir, class2idx_dict, device, audio_length=441000,
+    def __init__(self, openmic_dir, inst2idx_dict, classes, device, audio_length=441000,
                  sample_rate=44100, n_mels=128, n_fft=1024, n_freqs=512,
                  hop_length=441, f_max=22050, f_min=0, win_length=400):
         super(InstrumentsDataset, self).__init__()
@@ -23,7 +22,8 @@ class InstrumentsDataset(torch.utils.data.Dataset):
         self.hop_length = hop_length
         self.f_min = f_min
         self.f_max = f_max
-        self.class2idx_dict = class2idx_dict
+        self.inst2idx_dict = inst2idx_dict
+        self.classes = classes
         self.device = device
         self.n_freqs = n_freqs
         self.win_length = win_length
@@ -36,11 +36,12 @@ class InstrumentsDataset(torch.utils.data.Dataset):
             labels: list<int>
         '''
         sample_key = self.audios[index].split('/')[-1].replace('.ogg', '')
-        y_labels = [0] * len(self.class2idx_dict)
-        labels = [self.class2idx_dict[c] for c in
+        y_labels = [-1] * self.classes
+        labels = [self.inst2idx_dict.get(c, 99) for c in
                   self.label_df.loc[self.label_df['sample_key'] == sample_key]['instrument'].tolist()]
         for label in labels:
-            y_labels[label] = 1
+            if label < self.classes:
+                y_labels[label] = 1
 
         waveform, sr = torchaudio.load(self.audios[index])
 
@@ -56,7 +57,7 @@ class InstrumentsDataset(torch.utils.data.Dataset):
         log_mel_spec = to_mel_spectrogram(waveform).log()
 
         t = torch.Tensor(log_mel_spec).to(self.device)
-        t[t == float('-inf')] = -1e9
+        t[t == float('-inf')] = 0
         return t, torch.Tensor(y_labels).to(self.device), sr
 
     def __len__(self):
