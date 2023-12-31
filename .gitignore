@@ -2,6 +2,9 @@
 config.py
 wandb
 data
+test.py
+pre_trained
+torchvggish
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
