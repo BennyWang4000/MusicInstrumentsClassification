@@ -13,10 +13,15 @@ class WandbLogger():
                 config={
                     'name': MODEL_NAME,
                     'epochs': EPOCHS,
+                    'is_valid': IS_VALID,
+                    'k_folds': K_FOLDS,
                     'batch_size': BATCH_SIZE,
                     'lr': LR,
                     'optimizer': OPTIMIZER,
                     'criterion': CRITERION,
+                    'scheduler': SCHEDULER,
+                    'scheduler_step_size': SCHEDULER_STEP_SIZE,
+                    'scheduler_factory': SCHEDULER_FACTORY,
                 }
             )
 
@@ -27,7 +32,7 @@ class WandbLogger():
 
     def log(self, epoch, i, state, y_label, y_hat_label, loss):
         y_hat_label = torch.where(
-            y_hat_label > 0.5, 1.0, 0.0)
+            y_hat_label > THRESHOLD, 1.0, 0.0)
         y_label = torch.where(
             y_label > 0, 1.0, 0.0)
 

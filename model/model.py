@@ -12,31 +12,21 @@ class TransformerClassifier(nn.Module):
     def __init__(self, classes=20, device='cpu'):
         super(TransformerClassifier, self).__init__()
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=128, nhead=8, activation=F.leaky_relu, device=device)
+            d_model=128, nhead=8, activation=nn.LeakyReLU(), device=device)
         self.transformer_encoder = nn.TransformerEncoder(
             encoder_layer, num_layers=6, enable_nested_tensor=False)
-        # self.reduction = SVDReduction()
+
         self.classifier = nn.Sequential(
             LiearClassifier(1280, 512, dropout=0.2, is_flatten=True),
-            LiearClassifier(512, 128, dropout=0.2),
-            LiearClassifier(128, classes, dropout=0.2,
+            LiearClassifier(512, 256, dropout=0.2),
+            LiearClassifier(256, 64, dropout=0.2),
+            LiearClassifier(64, classes, dropout=0.2,
                             is_activate=False, is_sigmoid=False),
         )
-        # self.attn_cnn = AttnCNN1D()
 
     def forward(self, x):
-        # x = x.squeeze(1)
-        # print(x.shape)
-        # x = self.conv(x)
-        # print(x.shape)
-        # x = F.relu(x)
-        # x = F.max_pool2d(x, 2, 2)
-        # print(x.shape)
         x = self.transformer_encoder(x)
-        # print(x.shape)
         x = self.classifier(x)
-        # print(x.shape)
-        # x = self.attn_cnn(x)
         return x
 
 

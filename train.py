@@ -12,9 +12,7 @@ from sklearn.model_selection import KFold
 
 if __name__ == '__main__':
     dataset = InstrumentsDataset(
-        openmic_dir=OPENMIC_DIR, inst2idx_dict=INST2IDX_DICT, classes=len(INST2IDX_DICT), device=DEVICE, audio_length=AUDIO_LENGTH,
-        sample_rate=SAMPLE_RATE, n_mels=N_MELS, n_fft=N_FFT, n_freqs=N_FREQS, pre_trained='vggish', pre_trained_path=VGGISH_PATH,
-        hop_length=HOP_LENGTH, f_max=F_MAX, f_min=F_MIN)
+        openmic_dir=OPENMIC_DIR, inst2idx_dict=INST2IDX_DICT, classes=len(INST2IDX_DICT), device=DEVICE, is_pre_trained=IS_PRE_TRAINED, kwargs=KWARGS_PRETRAINED)
     test_num = floor(dataset.__len__() * TEST_PER)
     train_num = dataset.__len__() - test_num
     kfold = KFold(n_splits=K_FOLDS, shuffle=True)
@@ -33,35 +31,34 @@ if __name__ == '__main__':
         dataset=test_set, batch_size=BATCH_SIZE, shuffle=True)
 
     model = TransformerClassifier(len(INST2IDX_DICT), device=DEVICE).to(DEVICE)
-    optimizer = OPTIMIZER(model.parameters(), lr=LR)
-    sigmoid = torch.nn.Sigmoid()
+    optimizer = OPTIMIZER(model.parameters(), lr=LR, weight_decay=0.00001)
+    scheduler = SCHEDULER(optimizer, mode=SCHEDULER_MODE,
+                          patience=SCHEDULER_STEP_SIZE, factor=SCHEDULER_FACTORY)
 
+    sigmoid = torch.nn.Sigmoid()
     wandb_logger = WandbLogger()
 
     for epoch in range(EPOCHS):
         if epoch == 0:
             print(model)
+
         # * ---------------------------------------------------------------------------- #
         # *                                   training                                   #
         # * ---------------------------------------------------------------------------- #
         print('epoch:\t', epoch)
-        running_loss = 0.0
-        running_acc = 0.0
-        running_ppv = 0.0
+        wandb_logger.log_init()
         model.train()
         progress = tqdm(train_loader)
         iterator = enumerate(progress)
         for i, batch in iterator:
-            sample_input, y_label, sr = batch
+            sample_input, y_label, _ = batch
             optimizer.zero_grad()
             y_hat_label = model(sample_input)
             loss = CRITERION(y_hat_label, y_label)
             loss.backward()
             optimizer.step()
+            scheduler.step(loss)
             y_hat_label = sigmoid(y_hat_label)
-            if i % 300 == 0:
-                print(y_label)
-                print(y_hat_label)
 
             wandb_logger.log(epoch, i, 'train', y_label,
                              y_hat_label, loss.item())
@@ -87,22 +84,20 @@ if __name__ == '__main__':
         # * ---------------------------------------------------------------------------- #
         # *                                    testing                                   #
         # * ---------------------------------------------------------------------------- #
-        running_loss = 0.0
-        running_tp = 0.0
-        running_fp = 0.0
+        wandb_logger.log_init()
         model.eval()
         progress = tqdm(test_loader)
         iterator = enumerate(progress)
         for i, batch in iterator:
-            sample_input, y_label, sr = batch
+            sample_input, y_label, _ = batch
             y_hat_label = model(sample_input)
             loss = CRITERION(y_hat_label, y_label)
             y_hat_label = sigmoid(y_hat_label)
             wandb_logger.log(epoch, i, 'test', y_label,
                              y_hat_label, loss.item())
 
-    model.normalize_parameters()
-    torch.save(model.state_dict(), os.path.join(
-        MODEL_STATE_DIR, MODEL_NAME + '.pt'))
+        # model.normalize_parameters()
+        torch.save(model.state_dict(), os.path.join(
+            MODEL_STATE_DIR, MODEL_NAME + '_' + str(epoch) + '.pt'))
 
 # %%
