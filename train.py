@@ -12,7 +12,13 @@ from sklearn.model_selection import KFold
 
 if __name__ == '__main__':
     dataset = InstrumentsDataset(
-        openmic_dir=OPENMIC_DIR, inst2idx_dict=INST2IDX_DICT, classes=len(INST2IDX_DICT), device=DEVICE, is_pre_trained=IS_PRE_TRAINED, kwargs=KWARGS_PRETRAINED)
+        openmic_dir=OPENMIC_DIR,
+        inst2idx_dict=INST2IDX_DICT,
+        classes=len(INST2IDX_DICT),
+        device=DEVICE,
+        is_pre_trained=PRE_TRAINED,
+        signal_args=KWARGS_SIGNAL,
+        pre_trained_path=PRE_TRAINED_PATHS[PRE_TRAINED])
     test_num = floor(dataset.__len__() * TEST_PER)
     train_num = dataset.__len__() - test_num
     kfold = KFold(n_splits=K_FOLDS, shuffle=True)
@@ -30,13 +36,16 @@ if __name__ == '__main__':
     test_loader = DataLoader(
         dataset=test_set, batch_size=BATCH_SIZE, shuffle=True)
 
-    model = TransformerClassifier(len(INST2IDX_DICT), device=DEVICE).to(DEVICE)
+    model = TransformerClassifier(classes=len(
+        INST2IDX_DICT), device=DEVICE).to(DEVICE)
     optimizer = OPTIMIZER(model.parameters(), lr=LR, weight_decay=0.00001)
     scheduler = SCHEDULER(optimizer, mode=SCHEDULER_MODE,
                           patience=SCHEDULER_STEP_SIZE, factor=SCHEDULER_FACTORY)
-
+    running_loss = 0
     sigmoid = torch.nn.Sigmoid()
-    wandb_logger = WandbLogger()
+
+    if IS_WANDB:
+        wandb_logger = WandbLogger()
 
     for epoch in range(EPOCHS):
         if epoch == 0:
@@ -46,23 +55,27 @@ if __name__ == '__main__':
         # *                                   training                                   #
         # * ---------------------------------------------------------------------------- #
         print('epoch:\t', epoch)
-        wandb_logger.log_init()
+        running_loss = 0
         model.train()
         progress = tqdm(train_loader)
         iterator = enumerate(progress)
         for i, batch in iterator:
-            sample_input, y_label, _ = batch
+            sample_input, y_label,  = batch
             optimizer.zero_grad()
             y_hat_label = model(sample_input)
+
+            # break
             loss = CRITERION(y_hat_label, y_label)
             loss.backward()
             optimizer.step()
             scheduler.step(loss)
             y_hat_label = sigmoid(y_hat_label)
+            if IS_WANDB:
+                running_loss += loss.item()
+                wandb_logger.log(epoch, 'train', y_label.cpu(),
+                                 y_hat_label.cpu(), running_loss/(i + 1))
 
-            wandb_logger.log(epoch, i, 'train', y_label,
-                             y_hat_label, loss.item())
-
+        # break
         # # * ---------------------------------------------------------------------------- #
         # # *                                  validation                                  #
         # # * ---------------------------------------------------------------------------- #
@@ -73,7 +86,7 @@ if __name__ == '__main__':
         # progress = tqdm(valid_loader)
         # iterator = enumerate(progress)
         # for i, batch in iterator:
-        #     sample_input, y_label, sample_rate = batch
+        #     sample_input, y_label, log_mel, mfcc = batch
         #     y_hat_label = model(sample_input)
         #     loss = CRITERION(y_hat_label, y_label)
         #     # y_hat_label = sigmoid(y_hat_label)
@@ -84,17 +97,21 @@ if __name__ == '__main__':
         # * ---------------------------------------------------------------------------- #
         # *                                    testing                                   #
         # * ---------------------------------------------------------------------------- #
-        wandb_logger.log_init()
+
+        running_loss = 0
         model.eval()
         progress = tqdm(test_loader)
         iterator = enumerate(progress)
         for i, batch in iterator:
-            sample_input, y_label, _ = batch
+            sample_input, y_label = batch
             y_hat_label = model(sample_input)
             loss = CRITERION(y_hat_label, y_label)
             y_hat_label = sigmoid(y_hat_label)
-            wandb_logger.log(epoch, i, 'test', y_label,
-                             y_hat_label, loss.item())
+
+            if IS_WANDB:
+                running_loss += loss.item()
+                wandb_logger.log(epoch, 'test', y_label.cpu(),
+                                 y_hat_label.cpu(), running_loss/(i + 1))
 
         # model.normalize_parameters()
         torch.save(model.state_dict(), os.path.join(

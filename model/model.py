@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.nn.functional as F
-import torch.nn.init as init
-import numpy as np
 
 
 class TransformerClassifier(nn.Module):
@@ -11,10 +8,15 @@ class TransformerClassifier(nn.Module):
 
     def __init__(self, classes=20, device='cpu'):
         super(TransformerClassifier, self).__init__()
+
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=128, nhead=8, activation=nn.LeakyReLU(), device=device)
         self.transformer_encoder = nn.TransformerEncoder(
             encoder_layer, num_layers=6, enable_nested_tensor=False)
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=128, nhead=8, activation=nn.LeakyReLU(), device=device)
+        self.transformer_decoder = nn.TransformerDecoder(
+            decoder_layer, num_layers=3)
 
         self.classifier = nn.Sequential(
             LiearClassifier(1280, 512, dropout=0.2, is_flatten=True),
@@ -23,9 +25,21 @@ class TransformerClassifier(nn.Module):
             LiearClassifier(64, classes, dropout=0.2,
                             is_activate=False, is_sigmoid=False),
         )
+        # self.classifier = nn.Sequential(
+        #     LiearClassifier(128, 128, dropout=0.2),
+        #     LiearClassifier(128, 128, dropout=0.2),
+        #     LiearClassifier(128, 128, dropout=0.2),
+        #     LiearClassifier(128, classes, dropout=0.2,
+        #                     is_activate=False, is_sigmoid=False),
+        # )
 
     def forward(self, x):
         x = self.transformer_encoder(x)
+        # print('x', x.shape)
+        # print('out', out.shape)
+        # print('mel', mel.shape)
+        # x = self.transformer_decoder(out, mel)
+        # out = out.mean(1)
         x = self.classifier(x)
         return x
 

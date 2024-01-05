@@ -5,6 +5,7 @@ from instruments.model import TransformerClassifier
 
 model= TransformerClassifier(20)
 model.load('state_dict_path.pt')
+result= model()
 ```
 
 ## Dataset

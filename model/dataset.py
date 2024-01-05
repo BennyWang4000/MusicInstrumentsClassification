@@ -1,16 +1,25 @@
+# %%
 import torch
 import os
 from glob import glob
 import pandas as pd
 import torchaudio
 from torchvggish.torchvggish.vggish import VGGish, vggish_input
+import torchaudio.functional as F
+# %%
 
 
 class InstrumentsDataset(torch.utils.data.Dataset):
-
-    def __init__(self, openmic_dir, inst2idx_dict, classes, device, is_pre_trained=False, **kwargs):
+    def __init__(self, openmic_dir: str, inst2idx_dict: dict[str, int], classes: int, device: str, is_pre_trained=None, signal_args=None, **kwargs):
+        '''
+        Args:
+            openmic_dir (str)
+            inst2idx_dict (dict[str, int])
+            classes (int)
+            device (str)
+            is_pre_trained (str, optional): Defaults to None.
+        '''
         super(InstrumentsDataset, self).__init__()
-        kwargs = kwargs['kwargs']
         self.label_df: pd.DataFrame = pd.read_csv(os.path.join(
             openmic_dir, 'openmic-2018-aggregated-labels.csv'))
         self.audios = glob(os.path.join(
@@ -22,25 +31,22 @@ class InstrumentsDataset(torch.utils.data.Dataset):
         self.device = device
 
         if is_pre_trained:
-            assert kwargs['pre_trained'] in [
+            assert is_pre_trained in [
                 'vggish'], 'assert pre-trained model in ["vggish",].'
-            self.pre_trained = kwargs['pre_trained']
-
-            if self.pre_trained == 'vggish':
-                self.pre_trained_model = VGGish(
-                    kwargs['pre_trained_path'], postprocess=False, preprocess=False)
-                self.pre_trained_model.eval()
-        else:
-            self.audio_length = kwargs['audio_length']
-            self.sample_rate = kwargs['sample_rate']
-            self.n_mels = kwargs['n_mels']
-            self.n_fft = kwargs['n_fft']
-            self.hop_length = kwargs['hop_length']
-            self.f_min = kwargs['f_min']
-            self.f_max = kwargs['f_max']
-            self.n_freqs = kwargs['n_freqs']
-            self.win_length = kwargs['win_length']
-            self.pre_trained = kwargs['pre_trained']
+            self.pre_trained = is_pre_trained
+            self.pre_trained_model = VGGish(
+                kwargs['pre_trained_path'], postprocess=False, preprocess=False)
+            self.pre_trained_model.eval()
+        if signal_args != None:
+            self.audio_length = signal_args['audio_length']
+            self.sample_rate = signal_args['sample_rate']
+            self.n_mels = signal_args['n_mels']
+            self.n_fft = signal_args['n_fft']
+            self.hop_length = signal_args['hop_length']
+            self.f_min = signal_args['f_min']
+            self.f_max = signal_args['f_max']
+            self.n_freqs = signal_args['n_freqs']
+            self.win_length = signal_args['win_length']
 
     def __getitem__(self, index):
         sample_key = self.audios[index].split('/')[-1].replace('.ogg', '')
@@ -52,40 +58,90 @@ class InstrumentsDataset(torch.utils.data.Dataset):
             if label < self.classes:
                 y_labels[label] = 1
 
-        if self.is_pre_trained:
+        if self.pre_trained:
             if self.pre_trained == 'vggish':
-                example = vggish_input.wavfile_to_examples(self.audios[index])
-                t = self.pre_trained_model.forward(example)
-        else:
-            waveform, sr = torchaudio.load(self.audios[index])
-            waveform = torch.mean(waveform, dim=0).unsqueeze(0)
-            while waveform.size()[1] < self.audio_length:
-                waveform = torch.concat((waveform, waveform), 1)
-            waveform = waveform[:, :self.audio_length]
+                sample_input = self.pre_trained_model.forward(
+                    vggish_input.wavfile_to_examples(self.audios[index]))
 
-            # * ---------------------------------------------------------------------------- #
-            # *                                   mel spec                                   #
-            # * ---------------------------------------------------------------------------- #
+        # # else:
+        # waveform, sr = torchaudio.load(self.audios[index])
 
-            to_mel_spectrogram = torchaudio.transforms.MelSpectrogram(
-                sample_rate=sr, n_fft=self.n_fft, n_mels=self.n_mels,
-                hop_length=self.hop_length, f_min=self.f_min, f_max=self.f_max, win_length=self.win_length)
+        # if sr != self.sample_rate:
+        #     waveform = F.resample(
+        #         waveform, sr, self.sample_rate, resampling_method="sinc_interp_kaiser")
+        # waveform = torch.mean(waveform, dim=0).unsqueeze(0)
+        # # while waveform.size()[1] < self.audio_length:
+        # #     waveform = torch.concat((waveform, waveform), 1)
+        # waveform = waveform[:, :self.audio_length]
 
-            t = to_mel_spectrogram(waveform).log()
+        # # * ---------------------------------------------------------------------------- #
+        # # *                                   mel spec                                   #
+        # # * ---------------------------------------------------------------------------- #
 
-            # * ---------------------------------------------------------------------------- #
-            # *                                     mfcc                                     #
-            # * ---------------------------------------------------------------------------- #
-            # transform = torchaudio.transforms.MFCC(
-            #     sample_rate=sr,
-            #     n_mfcc=128,
-            #     melkwargs={"n_fft": 1024, "hop_length": 441, "n_mels": 128, "center": False},)
-            # mfcc = transform(waveform)
+        # to_mel_spectrogram = torchaudio.transforms.MelSpectrogram(
+        #     sample_rate=sr, n_fft=self.n_fft, n_mels=self.n_mels,
+        #     hop_length=self.hop_length, f_min=self.f_min, f_max=self.f_max, win_length=self.win_length)
 
-            # t = torch.Tensor(mfcc).to(self.device)
-            # t[t == float('-inf')] = -1.0e+09
+        # log_mel = to_mel_spectrogram(waveform).log()
 
-        return t.to(self.device), torch.Tensor(y_labels).to(self.device), 0
+        # # * ---------------------------------------------------------------------------- #
+        # # *                                     mfcc                                     #
+        # # * ---------------------------------------------------------------------------- #
+        # transform = torchaudio.transforms.MFCC(
+        #     sample_rate=sr,
+        #     n_mfcc=10,
+        #     melkwargs={"n_fft": 256, "hop_length": 1252, "n_mels": 10, "center": False},)
+        # mfcc = transform(waveform)
+        # mfcc = torch.Tensor(mfcc).to(self.device)
+        # mfcc[mfcc == float('-inf')] = -1.0e+09
+
+        # return t.to(self.device), torch.Tensor(y_labels).to(self.device), log_mel.squeeze(0).to(self.device), mfcc.squeeze(0).to(self.device)
+        # return sample_input.to(self.device), torch.Tensor(y_labels).to(self.device), mfcc.to(self.device).squeeze(0)
+        return sample_input.to(self.device), torch.Tensor(y_labels).to(self.device)
 
     def __len__(self):
         return len(self.audios)
+
+
+# # %%
+# waveform, sr = torchaudio.load(
+#     "/home/wirl/wang/MusicInstrumentsClassification/data/openmic-2018/audio/000/000046_3840.ogg")
+# waveform = torch.mean(waveform, dim=0).unsqueeze(0)
+# # while waveform.size()[1] < self.audio_length:
+# #     waveform = torch.concat((waveform, waveform), 1)
+# # waveform = waveform[:, :self.audio_length]
+# # waveform, sample_rate = torchaudio.load(
+# #     , normalize=True)
+# # transform = torchaudio.transforms.MFCC(
+# #     sample_rate=sr,
+# #     n_mfcc=10,
+# #     melkwargs={"n_fft": 256, "hop_length": 1725,
+# #                "n_mels": 10, "center": False},
+
+# # )
+# to_mel_spectrogram = torchaudio.transforms.MelSpectrogram(
+#     sample_rate=sr, n_fft=10, n_mels=20,
+#     hop_length=1725, f_min=self.f_min, f_max=self.f_max, win_length=self.win_length)
+
+# mfcc = to_mel_spectrogram(waveform).log()
+
+# mfcc = transform(waveform)
+# print(mfcc.shape)
+# # print(mfcc)
+# # mfcc = mfcc.squeeze(0)
+# # print(mfcc.shape)
+# # print(mfcc)
+
+
+# def plot_spectrogram(specgram, title=None, ylabel="freq_bin", ax=None):
+#     if ax is None:
+#         _, ax = plt.subplots(1, 1)
+#     if title is not None:
+#         ax.set_title(title)
+#     ax.set_ylabel(ylabel)
+#     ax.imshow(librosa.power_to_db(specgram), origin="lower",
+#               aspect="auto", interpolation="nearest")
+
+
+# plot_spectrogram(mfcc[0], title="MFCC")(mfcc)
+# # %%
