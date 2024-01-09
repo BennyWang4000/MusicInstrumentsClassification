@@ -1,22 +1,17 @@
 # MusicInstrumentsClassification
-## Usage
-```python
-from instruments.model import TransformerClassifier
+## Overview
+![](src/overview.png)
+![](src/method.png)
 
-model= TransformerClassifier(20)
-model.load('state_dict_path.pt')
-result= model()
-```
-
-## Dataset
-OpenMIC-2018
-- inexact label
-- multi-label
-
-## Method
-- PyTorch pre-trained VGGish
-- transformer encoder
-- three layer fully connect with dropout and leakyReLU
+## The Dataset
+![](src/dataset_0.png)
+![](src/dataset_1.png)
 
 ## Result
-:P
+![](src/hyper_parameters.png)
+![](src/boxplot.png)
+
+## Similarities
+![](src/similarities_0.png)
+![](src/normalization.png)
+![](src/similarities_1.png)

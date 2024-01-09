@@ -2,6 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# ---------------------------------------------------------------------------- #
+#                             only this could work                             #
+# ---------------------------------------------------------------------------- #
+
 
 class TransformerClassifier(nn.Module):
     """Some Information about Trans"""
@@ -17,7 +21,6 @@ class TransformerClassifier(nn.Module):
             d_model=128, nhead=8, activation=nn.LeakyReLU(), device=device)
         self.transformer_decoder = nn.TransformerDecoder(
             decoder_layer, num_layers=3)
-
         self.classifier = nn.Sequential(
             LiearClassifier(1280, 512, dropout=0.2, is_flatten=True),
             LiearClassifier(512, 256, dropout=0.2),
@@ -72,6 +75,10 @@ class LiearClassifier(nn.Module):
 
     def forward(self, x):
         return self.classifier(x)
+
+# ---------------------------------------------------------------------------- #
+#                            deprecated of following                           #
+# ---------------------------------------------------------------------------- #
 
 
 class Trans(nn.Module):

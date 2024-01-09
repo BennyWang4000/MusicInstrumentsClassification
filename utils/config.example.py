@@ -4,7 +4,7 @@ import torch.nn
 # * ---------------------------------------------------------------------------- #
 # *                                     data                                     #
 # * ---------------------------------------------------------------------------- #
-MODEL_NAME = 'transformer+ FC scheduler .ver'
+MODEL_NAME = 'flatten outside'
 OPENMIC_DIR = './data/openmic-2018'
 MODEL_STATE_DIR = './runs'
 
@@ -31,6 +31,7 @@ INST2IDX_DICT = {'accordion': 0,
 
 IDX2INST_DICT = {v: k for k, v in INST2IDX_DICT.items()}
 
+INST_NAME_LST = [k for k, _ in INST2IDX_DICT.items()]
 
 # * ---------------------------------------------------------------------------- #
 # *                                   training                                   #
@@ -39,7 +40,7 @@ TEST_PER = 0.1
 IS_VALID = False
 K_FOLDS = 10
 
-EPOCHS = 10
+EPOCHS = 20
 BATCH_SIZE = 8
 LR = 0.0001
 
@@ -49,38 +50,33 @@ BETA2 = 0.999
 CRITERION = torch.nn.CrossEntropyLoss()
 SCHEDULER = optim.lr_scheduler.ReduceLROnPlateau
 
+THRESHOLD = 0.55
+
 SCHEDULER_MODE = 'min'
 SCHEDULER_STEP_SIZE = 1000
 SCHEDULER_FACTORY = 0.9
 
-
-IS_WANDB = True
+IS_WANDB = False
 
 
 # * ---------------------------------------------------------------------------- #
 # *                                  pre-trained                                 #
 # * ---------------------------------------------------------------------------- #
 
-IS_PRE_TRAINED = True
 PRE_TRAINED = 'vggish'
+IS_PRE_TRAINED_EVAL = False
 
 PRE_TRAINED_PATHS = {
     'passt': './pre_trained/passt-l-kd-ap.47.pt',
-    'vggish': './pre_trained/vggish-10086976.pt'
+    'vggish': './pre_trained/vggish-10086976.pth'
 }
-
-KWARGS_PRETRAINED = {
-    'pre_trained': PRE_TRAINED,
-    'PRE_TRAINED_PATH': PRE_TRAINED_PATHS[PRE_TRAINED],
-}
-
 
 # * ---------------------------------------------------------------------------- #
 # *                                    signal                                    #
 # * ---------------------------------------------------------------------------- #
 
-AUDIO_LENGTH = 441000
-SAMPLE_RATE = 44100
+AUDIO_LENGTH = 160000
+SAMPLE_RATE = 16000
 HOP_LENGTH = 441
 N_FFT = 2048
 N_MELS = 64
@@ -108,3 +104,65 @@ KWARGS_SIGNAL = {
 
 IS_CUDA = cuda.is_available()
 DEVICE = device('cuda:0' if cuda.is_available() else 'cpu')
+
+
+# ---------------------------------------------------------------------------- #
+#                                  deprecated                                  #
+# ---------------------------------------------------------------------------- #
+# INST2CLASSIDX_DICT = {'bass': 0,
+#                       'drums': 1,
+#                       'guitar': 2,
+#                       'piano': 3,
+#                       'trombone': 4,
+#                       'trumpet': 4,
+#                       }
+# INSTIDX2CLASSIDX_DICT = {2: 0,
+#                          6: 1,
+#                          8: 2,
+#                          12: 3,
+#                          #  15: 4,
+#                          #  16: 4,
+#                          19: 5,
+#                          }
+# INSTIDX2CLASSIDX_DICT = {15: 0,
+#                          16: 0,
+#                          0: 1,
+#                          4: 1,
+#                          7: 1,
+#                          11: 1,
+#                          13: 1,
+#                          1: 2,
+#                          2: 2,
+#                          3: 2,
+#                          8: 2,
+#                          10: 2,
+#                          17: 2,
+#                          18: 2,
+#                          5: 3,
+#                          6: 3,
+#                          14: 4,
+#                          9: 5,
+#                          12: 5,
+#                          19: 6
+#                          }
+# INST2CLASSIDX_DICT = {
+#     k: INSTIDX2CLASSIDX_DICT.get(v, 99) for k, v in INST2IDX_DICT.items()}
+# CLASS2IDX_DICT = {0: 'brass',
+#                   1: 'wood-wing',
+#                   2: 'string',
+#                   3: 'drums',
+#                   4: 'synthesizer',
+#                   5: 'piano',
+#                   6: 'vocal', }
+# INST2CLASSIDX_DICT = {
+#     'drums': 0,
+#     'cymbals': 0,
+#     'saxophone': 1,
+#     'trombone': 1,
+#     'trumpet': 1,
+# }
+
+# CLASSIDX2NAME_DICT = {
+#     0: 'drums',
+#     1: 'brass'
+# }

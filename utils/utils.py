@@ -71,10 +71,10 @@ class WandbLogger():
             {str(epoch) + '_' + state + '_micro_ppv': results['micro avg']['precision']})
         wandb.log(
             {str(epoch) + '_' + state + '_weighted_f1': results['weighted avg']['f1-score']})
-        wandb.log(
-            {str(epoch) + '_' + state + '_weighted_ppv': results['weighted avg']['precision']})
-        wandb.log(
-            {str(epoch) + '_' + state + '_weighted_recall': results['weighted avg']['recall']})
+        # wandb.log(
+        #     {str(epoch) + '_' + state + '_weighted_ppv': results['weighted avg']['precision']})
+        # wandb.log(
+        #     {str(epoch) + '_' + state + '_weighted_recall': results['weighted avg']['recall']})
         wandb.log(
             {str(epoch) + '_' + state + '_samples_f1': results['samples avg']['f1-score']})
         wandb.log(
