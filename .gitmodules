@@ -1,0 +1,3 @@
+[submodule "torchvggish"]
+	path = torchvggish
+	url = https://github.com/harritaylor/torchvggish.git
